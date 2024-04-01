@@ -23,7 +23,7 @@ SEED = 1
 rng = np.random.default_rng(SEED)
 
 
-def create_and_populate_customers(num_customers: int = 50000) -> List[Dict]:
+def create_and_populate_customers(num_customers: int = 1000) -> List[Dict]:
     from aux_data.customers_aux_data import channel, locations
     
     customers_location = rng.choice(locations, size=(num_customers))
@@ -73,7 +73,7 @@ def create_and_populate_customers(num_customers: int = 50000) -> List[Dict]:
 
 
 # Generate and load events table to BQ
-def create_and_populate_events(num_customers: int = 50000) -> Dict:
+def create_and_populate_events(num_customers: int = 1000) -> Dict:
     from aux_data.events_aux_data import event_type
 
     events_per_customer = list(map(int, np.absolute(np.floor(rng.normal(1, 1, size=(num_customers)) * 100))))
@@ -101,7 +101,7 @@ def create_and_populate_events(num_customers: int = 50000) -> Dict:
 
 
 # Generate and load transactions to BQ
-def create_and_populate_transactions(num_customers: int = 50000) -> Dict:
+def create_and_populate_transactions(num_customers: int = 1000) -> Dict:
     from aux_data.transactions_aux_data import product_name, transaction_type
 
     transactions_per_customer = list(map(int, np.absolute(np.floor(rng.normal(1, 1, size=(num_customers)) * 100))))
@@ -198,7 +198,7 @@ def generate_and_populate_dataset(
         bigquery.SchemaField('is_foreign_key', 'BOOLEAN', mode='NULLABLE')
     ]
 
-    print('Creating tables ...')
+    print('Creating tables...')
     for table_id, table_schema in zip(['customers', 'events', 'transactions', 'metadata'], 
                         [customers_schema, events_schema, transactions_schema, metadata_schema]):
         table_id = f'{PROJECT_ID}.{DATASET_ID}.{table_id}'
@@ -206,28 +206,28 @@ def generate_and_populate_dataset(
         table = bq_client.create_table(table)
 
 
-    print('Generating and populating METADATA table ...')    
+    print('Generating and populating METADATA table...')    
     table_id = f"{PROJECT_ID}.{DATASET_ID}.metadata"
     bq_client.load_table_from_json(
         get_metadata_data(DATASET_ID=DATASET_ID), 
         destination=bigquery.Table(table_ref=table_id, schema=metadata_schema)
     )
 
-    print('Generating and populating CUSTOMERS table ...')
+    print('Generating and populating CUSTOMERS table...')
     customers_data = create_and_populate_customers()
     table_id = f"{PROJECT_ID}.{DATASET_ID}.customers"
     bq_client.load_table_from_json(
         customers_data, 
         destination=bigquery.Table(table_ref=table_id, schema=customers_schema))
     
-    print('Generating and populating EVENTS table ...')
+    print('Generating and populating EVENTS table...')
     events_data = create_and_populate_events()
     table_id = f"{PROJECT_ID}.{DATASET_ID}.events"
     bq_client.load_table_from_json(
         events_data, 
         destination=bigquery.Table(table_ref=table_id, schema=events_schema))
     
-    print('Generating and populating TRANSACTIONS table ...')
+    print('Generating and populating TRANSACTIONS table...')
     transactions_data = create_and_populate_transactions()
     table_id = f"{PROJECT_ID}.{DATASET_ID}.transactions"
     bq_client.load_table_from_json(

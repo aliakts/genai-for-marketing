@@ -232,9 +232,9 @@ with tab1:
                         folder_name=f"Marketing_Assets_{int(time.time())}",
                         parent_folder_id=DRIVE_FOLDER_ID)
                     st.session_state[NEW_FOLDER_KEY] = new_folder_id
-                    utils_workspace.set_permission(
-                        file_id=new_folder_id,
-                        domain=DOMAIN)
+#                    utils_workspace.set_permission(
+#                        file_id=new_folder_id,
+#                        domain=DOMAIN)
                 with st.spinner("Uploading Creative Brief to Google Docs..."):
                     doc_id = utils_workspace.copy_drive_file(
                         drive_file_id=DOC_TEMPLATE_ID,

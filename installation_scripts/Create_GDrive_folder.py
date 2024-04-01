@@ -4,6 +4,8 @@ import json
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
+from oauth2client.service_account import ServiceAccountCredentials
+import httplib2
 import string
 import random
 import argparse
@@ -12,6 +14,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--folder_name", help="Name of the drive folder", type=str)
 parser.add_argument("--service_account_email", help="email of your service account", type=str)
+parser.add_argument("--parent_folder_id", help="parent folder id", type=str) 
 
 dict_args = parser.parse_args()
 
@@ -19,23 +22,20 @@ print(f"Using arguments: {dict_args}")
 
 folder_name = dict_args.folder_name
 service_account_email = dict_args.service_account_email
+parent_folder_id = dict_args.parent_folder_id
+
+http = httplib2.Http()
+scope = 'https://www.googleapis.com/auth/drive'
+credentials = ServiceAccountCredentials.from_json_keyfile_name('../app/credentials.json', scope)
 
 def create_folder(folder_name):
-  """Create a folder and prints the folder ID
-  Returns : Folder Id
-
-  Load pre-authorized user credentials from the environment.
-  TODO(developer) - See https://developers.google.com/identity
-  for guides on implementing OAuth2 for the application.
-  """
-  creds, _ = google.auth.default()
-
   try:
     # create drive api client
-    service = build("drive", "v3", credentials=creds)
+    service = build("drive", "v3", http=credentials.authorize(http))
     file_metadata = {
         "name": folder_name,
         "mimeType": "application/vnd.google-apps.folder",
+        "parents": [parent_folder_id]
     }
 
     # pylint: disable=maybe-no-member
@@ -51,18 +51,16 @@ def create_folder(folder_name):
 # Sharing Folder with DOMAIN
 
 def share_file(real_folder_id, real_user):
-  creds, _ = google.auth.default()
-
   try:
     # create drive api client
-    service = build("drive", "v3", credentials=creds)
+    service = build("drive", "v3", http=credentials.authorize(http))
     ids = []
     folder_id = real_folder_id
 
     def callback(request_id, response, exception):
       if exception:
         # Handle error
-        print(exception)
+        print("Exception while sharing file with user: " + exception)
       else:
         print(f"Request_Id: {request_id}")
         print(f'Permission Id: {response.get("id")}')
@@ -100,11 +98,10 @@ def upload_with_conversion(folder_id,source_file,destination_file,file_type):
   TODO(developer) - See https://developers.google.com/identity
   for guides on implementing OAuth2 for the application.
   """
-  creds, _ = google.auth.default()
 
   try:
     # create drive api client
-    service = build("drive", "v3", credentials=creds)
+    service = build("drive", "v3", http=credentials.authorize(http))
     results = service.files().list(q=f"name='{destination_file}'",
         pageSize=10, fields="nextPageToken, files(id, name)",
         supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
@@ -147,23 +144,22 @@ def upload_with_conversion(folder_id,source_file,destination_file,file_type):
 
 if __name__ == "__main__":
 
-    creds, _ = google.auth.default()
-    service = build("drive", "v3", credentials=creds)
+    service = build("drive", "v3", http=credentials.authorize(http))
     print(folder_name)
     results = service.files().list(q=f"name='{folder_name}'",
         pageSize=10, fields="nextPageToken, files(id, name)",
         supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
 
     if len(results["files"]) == 0: 
-        print(" folder not found")
+        print("Folder not found, so creating a brand new folder...")
         GDRIVE_FOLDER_ID=create_folder(folder_name)
     else:
-        print(" folder Already Exists, so using the same")
+        print("Folder already exists, so using the same...")
         GDRIVE_FOLDER_ID=results["files"][0]["id"]
-    share_file(GDRIVE_FOLDER_ID,service_account_email)
-    MarketingExcelID=upload_with_conversion(GDRIVE_FOLDER_ID,"genai-for-marketing/templates/[data source] GenAI for Marketing.xlsx","GenAI for Marketing.xlsx","text/xls")
-    MarketingDocID=upload_with_conversion(GDRIVE_FOLDER_ID,"genai-for-marketing/templates/[template] Gen AI for Marketing Google Doc Template.docx","Gen AI for Marketing Google Doc Template.docx","text/doc")
-    MarketingPptID=upload_with_conversion(GDRIVE_FOLDER_ID,"genai-for-marketing/templates/[template] Marketing Assets.pptx","Marketing Assets.pptx","text/ppt")
+  #  share_file(GDRIVE_FOLDER_ID,service_account_email)
+    MarketingExcelID=upload_with_conversion(GDRIVE_FOLDER_ID,"../templates/[data source] GenAI for Marketing.xlsx","GenAI for Marketing.xlsx","text/xls")
+    MarketingDocID=upload_with_conversion(GDRIVE_FOLDER_ID,"../templates/[template] Gen AI for Marketing Google Doc Template.docx","Gen AI for Marketing Google Doc Template.docx","text/doc")
+    MarketingPptID=upload_with_conversion(GDRIVE_FOLDER_ID,"../templates/[template] Marketing Assets.pptx","Marketing Assets.pptx","text/ppt")
     
     with open("marketingEnvValue.json", "r") as jsonFile:
         data = json.load(jsonFile)
@@ -173,8 +169,3 @@ if __name__ == "__main__":
         data["MarketingPptID"] = MarketingPptID
     with open("marketingEnvValue.json", "w") as jsonFile:
         json.dump(data, jsonFile)
-    
-    
-
-
-  
